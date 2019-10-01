@@ -3,11 +3,11 @@ title: "Ezra's NBA Ranking Method"
 output:
   html_document:
     highlight: zenburn
-    theme: flatly
+    theme: journal
 ---
 
 ```{r setup, message=FALSE,warning=FALSE}
-library(nbastatR);library(tidyverse); library(magrittr)
+library(nbastatR);library(tidyverse); library(magrittr);library(plotly)
 knitr::opts_chunk$set(warning = F, message = F, echo = F)
 ```
 
@@ -44,7 +44,7 @@ adj_games <-
     ast  = ast * 2,
     blk  = blk * 2.5,
     stl  = stl * 2.5,
-    pf   = pf * -1
+    pf   = pf  * -1
   ) %>%
   mutate(
     combo_score = pts + treb + ast + stl + blk + pf,
@@ -53,13 +53,18 @@ adj_games <-
   )
 ```
 
-```{r}
+```{r, dpi=600}
+library(gghighlight)
+
 adj_games %>%
-  filter(yearSeason >= 1980) %>%
-  ggplot(aes(x = dateGame, y = ezra_score, fill = namePlayer)) +
-  geom_line(aes(color = isWin),alpha = 0.1) +
+  filter(yearSeason == 2017) %>%
+  ggplot(aes(x = dateGame, y = ezra_score, color = namePlayer)) +
+  geom_line(alpha = 0.3) +
+  gghighlight(max(ezra_score) > 75) +
+  scale_color_viridis_d(option = "C") +
   theme_minimal() +
   theme(legend.position = "none")
+
 ```
 
 
@@ -84,6 +89,8 @@ Use farthest year back that contains assists (1968).
 Turnovers aren't available until 1979.
 Don't worry about breaking out 3 pts, 2 pts and FT, since overall points go back to 1959.
 Not all stats are available for older years.  Need to figure out why/which years *are* comparable.
+
+
 
 ```{r}
 goat_ish <-
@@ -238,8 +245,6 @@ p %>%
 
 ```
 
-```{r}
-plotly_json(pi)
-```
+
 
 
