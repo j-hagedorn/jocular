@@ -58,7 +58,13 @@ library(gghighlight)
 
 adj_games %>%
   filter(yearSeason == 2017) %>%
-  ggplot(aes(x = dateGame, y = ezra_score, color = namePlayer)) +
+  ggplot(
+    aes(
+      x = dateGame, 
+      y = ezra_score, 
+      color = namePlayer
+    )
+  ) +
   geom_line(alpha = 0.3) +
   gghighlight(max(ezra_score) > 75) +
   scale_color_viridis_d(option = "C") +
@@ -67,6 +73,23 @@ adj_games %>%
 
 ```
 
+```{r}
+library(xts)
+library(dygraphs)
+
+tst <-
+adj_games %>%
+  filter(dateGame >= as.Date("2019-01-01")) %>%
+  select(dateGame,namePlayer,ezra_score) %>%
+  spread(namePlayer,ezra_score,fill = 0) %>%
+  as.xts(order.by = .$dateGame)
+
+dygraph(tst) %>%
+  dyHighlight(highlightSeriesOpts = list(strokeWidth = 3)) %>% 
+  dySeries("dateGame", label = "Score") %>%
+  dyLegend(show = "follow") 
+
+```
 
 
 ```{r playr_per_yr}
