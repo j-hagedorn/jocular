@@ -1,19 +1,24 @@
-library(tidyverse); library(broom)
+library(tidyverse); library(tidymodels)
 
+games <- arrow::read_feather("data/games.feather")
 
 player <-
   games %>%
+  mutate(win = as.numeric(outcomeGame == "W")) %>%
   select(
-    idGame,idPlayer,namePlayer,yearSeason,ftm:pts,oreb:pctFG2,
+    idGame,idPlayer,namePlayer,yearSeason,ftm:pts,oreb:pctFG2,win,
     -fg3m,-fg3a,-fg2m,-fg2a,-ftm,-fta
   ) %>%
   # Remove players whose careers would be split up by the 1968 break
   filter(yearSeason >= 1968) %>%
   filter(complete.cases(.)) %>%
   group_by(idPlayer,namePlayer) %>%
-  summarise_at(vars(treb:pctFG2),list(~mean(., na.rm = T))) %>%
+  # Calc player-level metrics
+  mutate(n_games = n()) %>%
+  summarise_at(vars(treb:n_games),list(~mean(., na.rm = T))) %>%
   filter(!is.infinite(pctFG3)) %>% 
   ungroup()
+
 
 prcomps <-
   tibble(pc = 1:15) %>%
