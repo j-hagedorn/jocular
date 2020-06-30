@@ -19,7 +19,6 @@ player <-
   filter(!is.infinite(pctFG3)) %>% 
   ungroup()
 
-
 prcomps <-
   tibble(pc = 1:15) %>%
   mutate(
