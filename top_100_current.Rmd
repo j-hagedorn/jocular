@@ -5,9 +5,11 @@ date: "2022-08-30"
 ---
 
 ```{r setup, include=FALSE}
-library(tidyverse);library(plotly)
+library(tidyverse);library(plotly); library(paletteer)
 knitr::opts_chunk$set(warning = F, message = F, echo = F)
 ```
+
+# Get Data
 
 ```{r get_games, eval = FALSE}
 library(nbastatR)
@@ -28,17 +30,16 @@ arrow::write_parquet(df_nba_player_dict,"data/df_nba_player_dict.parquet")
 
 ```
 
-```{r}
+Criteria:
+
+- Includes most recent performance (*i.e. best 'current' player, currently*)
+- Must have played at least 41 games in 2021-2022 season
+
+```{r clean_df}
 # games <- arrow::read_parquet("data/games.parquet")
 player_season <- arrow::read_parquet("data/player_season.parquet")
 # df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
-```
 
-Criteria:
-
-- Must have played at least 41 games in 2021-2022 season
-
-```{r}
 df <-
   player_season %>%
   select(
@@ -60,9 +61,88 @@ df <-
     starts_with("pct"),ends_with("PerGame"),starts_with("ratio")
   ) %>%
   # Remove "made" per game, since this is accounted for in % stats
-  select(-ends_with("mPerGame"))
+  select(-ends_with("mPerGame")) %>%
+  # Keep most recent season
+  filter(season == max(season)) %>%
+  filter(countGames >= 41)
+
+rm(player_season)
 
 ```
+
+# What does it mean to be the best?
+
+Since we're focusing on current "best", we don't need to ask questions about how long someone has maintained their level of play (e.g. over a career, over a few years, etc.).  A rookie has just as much potential to be considered the "current best" as a LeBron.
+
+Even so, there are are many ways we could define "best" of the current crop of NBA players, e.g.:
+
+- Best at scoring?
+- Most well-rounded?
+- Biggest impact on team wins?
+
+# Best at Scoring?
+
+You can be good at scoring, but not try often.  Or shoot a lot and miss more often, taking opportunities away from others.  These players shoot *AND* score a lot...
+
+```{r}
+dt <-
+  df %>%
+  mutate(
+    adj = ptsPerGame * pctTrueShooting,
+    rank = row_number(desc(adj)),
+    top_100 = if_else(rank <= 100,"diamond","circle")
+  )
+
+p <-
+  dt %>%
+  ggplot(aes(x = ptsPerGame, y = pctTrueShooting, color = adj)) +
+  geom_point(aes(text = player_name, shape = top_100)) +
+  scale_color_paletteer_c(`"pals::ocean.deep"`,direction = -1) +
+  theme_minimal()
+
+ggplotly(p)
+```
+
+```{r}
+dt %>%
+  select(player_name,rank,adj,ptsPerGame,pctTrueShooting) %>%
+  arrange(rank) %>%
+  DT::datatable(rownames = F)
+```
+
+
+# Biggest impact on team wins?
+
+Compare advanced stats to take into account offensive and defensive contributions to wins (*i.e. Win Shares Per 48 Minutes*) and a normalized box score estimate of the defensive and offensive points per 100 possessions (*i.e. Box Plus/Minus*).
+
+
+```{r}
+dt <-
+  df %>%
+  mutate(
+    adj = (ratioWSPer48 + ratioBPM) / 2,
+    rank = row_number(desc(adj)),
+    top_100 = if_else(rank <= 100,"diamond","circle")
+  )
+
+p <-
+  dt %>%
+  ggplot(aes(x = ratioWSPer48, y = ratioBPM, color = adj)) +
+  geom_point(aes(text = player_name, shape = top_100)) +
+  scale_color_paletteer_c(`"pals::ocean.solar"`,direction = -1) +
+  theme_minimal()
+
+ggplotly(p)
+```
+
+```{r}
+dt %>%
+  select(player_name,rank,adj,ratioWSPer48,ratioBPM) %>%
+  arrange(rank) %>%
+  DT::datatable(rownames = F)
+```
+
+
 
 
 # Stats Dictionary
@@ -71,7 +151,7 @@ df <-
 - `player_id`: Unique NBA player ID.
 - `player_pos`: Principal position played, e.g. small forward (SF), center (C), etc.
 - `player_age`: Player's age on February 1 of the season
-- `player_team`
+- `player_team`:
 - `countGames`: Number of games played during season.
 - `countGamesStarted`: Number of games started during season.
 - `minutesPerGame`: Minutes Played Per Game.
