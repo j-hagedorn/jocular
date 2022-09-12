@@ -22,22 +22,22 @@ games <-
     assign_to_environment = TRUE, return_message = TRUE
   )
 
-player_season <- bref_players_stats(seasons = 2000:2022, tables = c("advanced", "totals", "per_game"))
+player_season <- bref_players_stats(seasons = 1978:2022, tables = c("advanced", "totals", "per_game"))
 
-arrow::write_parquet(games,"data/games.parquet")
-arrow::write_parquet(player_season,"data/player_season.parquet")
-arrow::write_parquet(df_nba_player_dict,"data/df_nba_player_dict.parquet")
+arrow::write_parquet(games,"../data/games.parquet")
+arrow::write_parquet(player_season,"../data/player_season.parquet")
+arrow::write_parquet(df_nba_player_dict,"../data/df_nba_player_dict.parquet")
 
 ```
 
 Criteria:
 
 - Includes most recent performance (*i.e. best 'current' player, currently*)
-- Must have played at least 41 games in 2021-2022 season
+- Must have played at least 41 games in season
 
 ```{r clean_df}
 # games <- arrow::read_parquet("data/games.parquet")
-player_season <- arrow::read_parquet("data/player_season.parquet")
+player_season <- arrow::read_parquet("../data/player_season.parquet")
 # df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
 
 df <-
@@ -63,8 +63,12 @@ df <-
   # Remove "made" per game, since this is accounted for in % stats
   select(-ends_with("mPerGame")) %>%
   # Keep most recent season
-  filter(season == max(season)) %>%
-  filter(countGames >= 41)
+  # filter(season %in% c(2000:2022)) %>%
+  filter(countGames >= 41) %>%
+  group_by(player_id) %>%
+  filter(ratioBPM == max(ratioBPM)) %>%
+  ungroup() %>%
+  mutate(player_season = paste0(player_name, " (", season,")"))
 
 rm(player_season)
 
@@ -96,7 +100,7 @@ dt <-
 p <-
   dt %>%
   ggplot(aes(x = ptsPerGame, y = pctTrueShooting, color = adj)) +
-  geom_point(aes(text = player_name, shape = top_100)) +
+  geom_point(aes(text = player_season, shape = top_100)) +
   scale_color_paletteer_c(`"pals::ocean.deep"`,direction = -1) +
   theme_minimal()
 
@@ -128,7 +132,7 @@ dt <-
 p <-
   dt %>%
   ggplot(aes(x = ratioWSPer48, y = ratioBPM, color = adj)) +
-  geom_point(aes(text = player_name, shape = top_100)) +
+  geom_point(aes(text = player_season, shape = top_100)) +
   scale_color_paletteer_c(`"pals::ocean.solar"`,direction = -1) +
   theme_minimal()
 
@@ -137,10 +141,12 @@ ggplotly(p)
 
 ```{r}
 dt %>%
-  select(player_name,rank,adj,ratioWSPer48,ratioBPM) %>%
+  select(player_season,rank,adj,ratioWSPer48,ratioBPM) %>%
   arrange(rank) %>%
   DT::datatable(rownames = F)
 ```
+
+
 
 
 
