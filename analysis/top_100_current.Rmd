@@ -1,0 +1,202 @@
+---
+title: "Dad's Top 100"
+output: html_document
+date: "2022-08-30"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse);library(plotly); library(paletteer)
+knitr::opts_chunk$set(warning = F, message = F, echo = F)
+```
+
+# Get Data
+
+```{r get_games, eval = FALSE}
+library(nbastatR)
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 2)
+
+games <-
+  game_logs(
+    seasons = 1959:2022, league = "NBA", result_types = "player",
+    season_types = "Regular Season", nest_data = F,
+    assign_to_environment = TRUE, return_message = TRUE
+  )
+
+player_season <- bref_players_stats(seasons = 1978:2022, tables = c("advanced", "totals", "per_game"))
+
+arrow::write_parquet(games,"../data/games.parquet")
+arrow::write_parquet(player_season,"../data/player_season.parquet")
+arrow::write_parquet(df_nba_player_dict,"../data/df_nba_player_dict.parquet")
+
+```
+
+Criteria:
+
+- Includes most recent performance (*i.e. best 'current' player, currently*)
+- Must have played at least 41 games in season
+
+```{r clean_df}
+# games <- arrow::read_parquet("data/games.parquet")
+player_season <- arrow::read_parquet("../data/player_season.parquet")
+# df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
+
+df <-
+  player_season %>%
+  select(
+    yearSeason, idPlayerNBA, namePlayer, agePlayer, 
+    slugPosition, slugTeamBREF, where(is.numeric)
+  ) %>%
+  select(
+    -countTeamsPlayerSeason,
+    -countTeamsPlayerSeasonPerGame,
+    -countTeamsPlayerSeasonTotals,-minutes,
+    -ends_with("Totals"),-starts_with("url")
+  ) %>%
+  rename(
+    season = yearSeason, player_id = idPlayerNBA, player_name = namePlayer,
+    player_age = agePlayer, player_pos = slugPosition, player_team = slugTeamBREF
+  ) %>%
+  select(
+    season,starts_with("player_"), countGames, countGamesStarted, minutesPerGame,
+    starts_with("pct"),ends_with("PerGame"),starts_with("ratio")
+  ) %>%
+  # Remove "made" per game, since this is accounted for in % stats
+  select(-ends_with("mPerGame")) %>%
+  # Keep most recent season
+  # filter(season %in% c(2000:2022)) %>%
+  filter(countGames >= 41) %>%
+  group_by(player_id) %>%
+  filter(ratioBPM == max(ratioBPM)) %>%
+  ungroup() %>%
+  mutate(player_season = paste0(player_name, " (", season,")"))
+
+rm(player_season)
+
+```
+
+# What does it mean to be the best?
+
+Since we're focusing on current "best", we don't need to ask questions about how long someone has maintained their level of play (e.g. over a career, over a few years, etc.).  A rookie has just as much potential to be considered the "current best" as a LeBron.
+
+Even so, there are are many ways we could define "best" of the current crop of NBA players, e.g.:
+
+- Best at scoring?
+- Most well-rounded?
+- Biggest impact on team wins?
+
+# Best at Scoring?
+
+You can be good at scoring, but not try often.  Or shoot a lot and miss more often, taking opportunities away from others.  These players shoot *AND* score a lot...
+
+```{r}
+dt <-
+  df %>%
+  mutate(
+    adj = ptsPerGame * pctTrueShooting,
+    rank = row_number(desc(adj)),
+    top_100 = if_else(rank <= 100,"diamond","circle")
+  )
+
+p <-
+  dt %>%
+  ggplot(aes(x = ptsPerGame, y = pctTrueShooting, color = adj)) +
+  geom_point(aes(text = player_season, shape = top_100)) +
+  scale_color_paletteer_c(`"pals::ocean.deep"`,direction = -1) +
+  theme_minimal()
+
+ggplotly(p)
+```
+
+```{r}
+dt %>%
+  select(player_name,rank,adj,ptsPerGame,pctTrueShooting) %>%
+  arrange(rank) %>%
+  DT::datatable(rownames = F)
+```
+
+
+# Biggest impact on team wins?
+
+Compare advanced stats to take into account offensive and defensive contributions to wins (*i.e. Win Shares Per 48 Minutes*) and a normalized box score estimate of the defensive and offensive points per 100 possessions (*i.e. Box Plus/Minus*).
+
+
+```{r}
+dt <-
+  df %>%
+  mutate(
+    adj = (ratioWSPer48 + ratioBPM) / 2,
+    rank = row_number(desc(adj)),
+    top_100 = if_else(rank <= 100,"diamond","circle")
+  )
+
+p <-
+  dt %>%
+  ggplot(aes(x = ratioWSPer48, y = ratioBPM, color = adj)) +
+  geom_point(aes(text = player_season, shape = top_100)) +
+  scale_color_paletteer_c(`"pals::ocean.solar"`,direction = -1) +
+  theme_minimal()
+
+ggplotly(p)
+```
+
+```{r}
+dt %>%
+  select(player_season,rank,adj,ratioWSPer48,ratioBPM) %>%
+  arrange(rank) %>%
+  DT::datatable(rownames = F)
+```
+
+
+
+
+
+
+# Stats Dictionary
+
+- `season`: Season, such that e.g. 2000 corresponds to the 1999-2000 season.
+- `player_id`: Unique NBA player ID.
+- `player_pos`: Principal position played, e.g. small forward (SF), center (C), etc.
+- `player_age`: Player's age on February 1 of the season
+- `player_team`:
+- `countGames`: Number of games played during season.
+- `countGamesStarted`: Number of games started during season.
+- `minutesPerGame`: Minutes Played Per Game.
+- `pctTrueShooting`: A measure of shooting efficiency that takes into account 2-point field goals, 3-point field goals, and free throws.
+- `pct3PRate`: 3-Point Attempt Rate; Percentage of FG Attempts from 3-Point Range
+- `pctFTRate`: Free Throw Attempt Rate; Number of FT Attempts Per FG Attempt
+- `pctORB`: Offensive Rebound Percentage; An estimate of the percentage of available offensive rebounds a player grabbed while they were on the floor.
+- `pctDRB`: Defensive Rebound Percentage; An estimate of the percentage of available defensive rebounds a player grabbed while they were on the floor.
+- `pctTRB` Total Rebound Percentage; An estimate of the percentage of available rebounds a player grabbed while they were on the floor.
+- `pctAST`: Assist Percentage; An estimate of the percentage of teammate field goals a player assisted while they were on the floor.
+- `pctSTL`: Steal Percentage; An estimate of the percentage of opponent possessions that end with a steal by the player while they were on the floor.
+- `pctBLK`: Block Percentage; An estimate of the percentage of opponent two-point field goal attempts blocked by the player while they were on the floor.
+- `pctTOV`: Turnover Percentage; An estimate of turnovers committed per 100 plays.
+- `pctUSG`: Usage Percentage; An estimate of the percentage of team plays used by a player while they were on the floor.
+- `pctFG`: Field Goal Percentage
+- `pctFG3`: 3-Point Field Goal Percentage
+- `pctFG2`: 2-Point Field Goal Percentage
+- `pctEFG`: Effective Field Goal Percentage; This statistic adjusts for the fact that a 3-point field goal is worth one more point than a 2-point field goal.
+- `pctFT`: Free Throw Percentage
+- `fgaPerGame`: Average Field Goal Attempts Per Game
+- `fg3aPerGame`: Average 3-Point Field Goal Attempts Per Game
+- `fg2aPerGame`: Average 2-Point Field Goal Attempts Per Game
+- `ftaPerGame`: Average Free Throw Attempts Per Game
+- `orbPerGame`: Average Offensive Rebounds Per Game
+- `drbPerGame`: Average Defensive Rebounds Per Game
+- `trbPerGame`: Average Total Rebounds Per Game
+- `astPerGame`: Average Assists Per Game
+- `stlPerGame`: Average Steals Per Game
+- `blkPerGame`: Average Blocks Per Game
+- `tovPerGame`: Average Turnovers Per Game
+- `pfPerGame`: Average Personal Fouls Per Game
+- `ptsPerGame`: Average Points Per Game
+- `ratioPER`: Player Efficiency Rating; A measure of per-minute production standardized such that the league average is 15.
+- `ratioOWS`: Offensive Win Shares; An estimate of the number of wins contributed by a player due to offense.
+- `ratioDWS`: Defensive Win Shares; An estimate of the number of wins contributed by a player due to defense.
+- `ratioWS`: Win Shares; An estimate of the number of wins contributed by a player.
+- `ratioWSPer48`: Win Shares Per 48 Minutes; An estimate of the number of wins contributed by a player per 48 minutes (league average is approximately .100)
+- `ratioOBPM`: Offensive Box Plus/Minus; A box score estimate of the offensive points per 100 possessions a player contributed above a league-average player, translated to an average team.
+- `ratioDBPM`: Defensive Box Plus/Minus; A box score estimate of the defensive points per 100 possessions a player contributed above a league-average player, translated to an average team.
+- `ratioBPM`: Box Plus/Minus; A box score estimate of the points per 100 possessions a player contributed above a league-average player, translated to an average team.
+- `ratioVORP`: Value over Replacement Player; A box score estimate of the points per 100 TEAM possessions that a player contributed above a replacement-level (-2.0) player, translated to an average team and prorated to an 82-game season.
+

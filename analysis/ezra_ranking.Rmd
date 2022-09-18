@@ -1,0 +1,273 @@
+---
+title: "Ezra's NBA Ranking Method"
+output:
+  html_document:
+    highlight: zenburn
+    theme: journal
+---
+
+```{r setup, message=FALSE,warning=FALSE}
+library(nbastatR);library(tidyverse); library(magrittr);library(plotly)
+knitr::opts_chunk$set(warning = F, message = F, echo = F)
+```
+
+```{r get_games, eval=FALSE}
+games <-
+  game_logs(
+    seasons = 1959:2019, league = "NBA", result_types = "player",
+    season_types = "Regular Season", nest_data = F,
+    assign_to_environment = TRUE, return_message = TRUE
+  )
+
+arrow::write_feather(games,"data/games.feather")
+```
+
+Remove turnovers, unavailable prior to 1980
+
+```{r clean}
+games <- arrow::read_feather("data/games.feather")
+
+adj_games <-
+  games %>%
+  select(
+    yearSeason,idGame,dateGame,
+    namePlayer,idPlayer,isWin,minutes,
+    pts,treb,ast,stl,blk,pf
+  ) %>%
+  mutate_at(
+    vars(pts,treb,ast,stl,blk,pf),
+    list(~if_else(is.na(.),0,.))
+  ) %>%
+  mutate(
+    pts  = pts * 1,
+    treb = treb * 1.5,
+    ast  = ast * 2,
+    blk  = blk * 2.5,
+    stl  = stl * 2.5,
+    pf   = pf  * -1
+  ) %>%
+  mutate(
+    combo_score = pts + treb + ast + stl + blk + pf,
+    minute_pct  = minutes / 48,
+    ezra_score  = combo_score * minute_pct
+  )
+```
+
+```{r, dpi=600}
+library(gghighlight)
+
+adj_games %>%
+  filter(yearSeason == 2017) %>%
+  ggplot(
+    aes(
+      x = dateGame, 
+      y = ezra_score, 
+      color = namePlayer
+    )
+  ) +
+  geom_line(alpha = 0.3) +
+  gghighlight(max(ezra_score) > 75) +
+  scale_color_viridis_d(option = "C") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+library(xts)
+library(dygraphs)
+
+tst <-
+adj_games %>%
+  filter(dateGame >= as.Date("2019-01-01")) %>%
+  select(dateGame,namePlayer,ezra_score) %>%
+  spread(namePlayer,ezra_score,fill = 0) %>%
+  as.xts(order.by = .$dateGame)
+
+dygraph(tst) %>%
+  dyHighlight(highlightSeriesOpts = list(strokeWidth = 3)) %>% 
+  dySeries("dateGame", label = "Score") %>%
+  dyLegend(show = "follow") 
+
+```
+
+
+```{r playr_per_yr}
+
+player_year <-
+  adj_games %>%
+  group_by(yearSeason,idPlayer,namePlayer) %>%
+  summarize(
+    ezra_score = mean(ezra_score, na.rm = T),
+    n_games = n_distinct(idGame)
+  ) %>%
+  group_by(yearSeason) %>%
+  arrange(desc(ezra_score)) %>%
+  mutate(rank = row_number()) %>%
+  ungroup()
+
+```
+
+Use farthest year back that contains assists (1968).  
+Turnovers aren't available until 1979.
+Don't worry about breaking out 3 pts, 2 pts and FT, since overall points go back to 1959.
+Not all stats are available for older years.  Need to figure out why/which years *are* comparable.
+
+
+
+```{r}
+goat_ish <-
+  adj_games %>%
+  group_by(namePlayer) %>%
+  # Remove players whose careers would be split up by the 1968 break
+  filter(min(yearSeason) >= 1968) %>%
+  ungroup() %>%
+  filter(yearSeason >= 1968) %>%
+  group_by(idPlayer,namePlayer) %>%
+  summarize(
+    avg = mean(ezra_score, na.rm = T),
+    median = median(ezra_score, na.rm = T),
+    n_games = n_distinct(idGame)
+  )  %>%
+  ungroup() %>%
+  arrange(desc(median)) %>%
+  mutate(med_rank = row_number()) %>%
+  arrange(desc(avg)) %>%
+  mutate(avg_rank = row_number())
+  
+```
+
+# GOATS
+
+```{r, height=10}
+p <-
+  goat_ish %>%
+  filter(med_rank <= 50) %>%
+  ggplot(
+    aes(
+      x = fct_reorder(namePlayer,median,.desc = T), 
+      y = median, 
+      fill = avg
+    )
+  ) +
+  geom_col() +
+  geom_text(aes(label = med_rank),size = 2,hjust = -0.5) +
+  coord_flip() +
+  scale_fill_viridis_c(option = "D") +
+  labs(
+    title = "50 Greatest NBA Players",
+    subtitle = "Since 1968, based on Ezra's Swanky New Model",
+    x = "Descending goats",
+    y = "Median adjusted game contribution"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 7)
+  ) 
+  
+ggplotly(p)
+
+```
+
+
+
+# What about by season?
+
+```{r bump_theme}
+my_theme <- function() {
+
+  # Colors
+  color.background = "white"
+  color.text = "#22211d"
+
+  # Begin construction of chart
+  theme_bw(base_size=15) +
+
+    # Format background colors
+    theme(panel.background = element_rect(fill=color.background, color=color.background)) +
+    theme(plot.background  = element_rect(fill=color.background, color=color.background)) +
+    theme(panel.border     = element_rect(color=color.background)) +
+    theme(strip.background = element_rect(fill=color.background, color=color.background)) +
+
+    # Format the grid
+    theme(panel.grid.major.y = element_blank()) +
+    theme(panel.grid.minor.y = element_blank()) +
+    theme(axis.ticks       = element_blank()) +
+
+    # Format the legend
+    theme(legend.position = "none") +
+
+    # Format title and axis labels
+    theme(plot.title       = element_text(color=color.text, size=20, face = "bold")) +
+    theme(axis.title.x     = element_text(size=14, color="black", face = "bold")) +
+    theme(axis.title.y     = element_text(size=14, color="black", face = "bold", vjust=1.25)) +
+    theme(axis.text.x      = element_text(size=10, vjust=0.5, hjust=0.5, color = color.text)) +
+    theme(axis.text.y      = element_text(size=10, color = color.text)) +
+    theme(strip.text       = element_text(face = "bold")) +
+
+    # Plot margins
+    theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
+}
+```
+
+```{r}
+show.top.n <- 5
+since_year <- 1969
+
+p <-
+  player_year %>%
+  filter(yearSeason >= since_year) %>%
+  group_by(namePlayer) %>%
+  filter(min(rank) <= show.top.n) %>% 
+  ungroup()  %>% 
+  ggplot(
+    aes(
+      x = yearSeason, 
+      y = rank, 
+      group = namePlayer,
+      text = paste0(
+        "<b>#",rank,"</b> in <b>",yearSeason,"</b>:",
+        "\n ",namePlayer
+      )
+    )
+  ) +
+  geom_line(aes(color = namePlayer, alpha = 1.03), size = 2) +
+  geom_point(aes(color = namePlayer, alpha = 1.05), size = 4) +
+  scale_y_reverse(breaks = 1:show.top.n) +
+  scale_color_viridis_d(option = "C") +
+  coord_cartesian(ylim = c(1,show.top.n)) + 
+  theme(legend.position = "none") +
+  labs(
+    x = "NBA Season",
+    y = "Rank",
+    title = paste0("Top ",show.top.n," players since ",since_year)
+  ) + 
+  my_theme() 
+
+```
+
+
+
+```{r}
+library(plotly)
+
+p %>% 
+  ggplotly(tooltip = "text") %>%
+  style(mode = "markers") %>%
+  #rangeslider() %>%
+  rangeslider(start = 2009,end = 2019) %>% 
+  # layout(hovermode = "x") %>%
+  config(
+    displaylogo = FALSE,
+    modeBarButtonsToRemove = c(
+      "zoomIn2d","autoScale2d","zoomOut2d",
+      "lasso2d","toggleSpikelines","pan2d"
+    )
+  ) #%>% toWebGL()
+
+
+```
+
+
+
+
