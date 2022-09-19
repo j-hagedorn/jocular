@@ -1,0 +1,15 @@
+---
+title: "Fantasy Basketball"
+output: html_document
+date: "2022-09-18"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse);library(plotly); library(paletteer)
+knitr::opts_chunk$set(warning = F, message = F, echo = F)
+# games <- arrow::read_parquet("data/games.parquet")
+player_season <- arrow::read_parquet("../data/player_season.parquet")
+# df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
+```
+
+
