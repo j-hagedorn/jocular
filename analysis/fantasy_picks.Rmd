@@ -13,3 +13,66 @@ player_season <- arrow::read_parquet("../data/player_season.parquet")
 ```
 
 
+```{r}
+df <-
+  player_season %>%
+  select(
+    yearSeason, idPlayerNBA, namePlayer, agePlayer, 
+    slugPosition, slugTeamBREF, where(is.numeric)
+  ) %>%
+  select(
+    -countTeamsPlayerSeason,
+    -countTeamsPlayerSeasonPerGame,
+    -countTeamsPlayerSeasonTotals,-minutes,
+    -ends_with("Totals"),-starts_with("url")
+  ) %>%
+  rename(
+    season = yearSeason, player_id = idPlayerNBA, player_name = namePlayer,
+    player_age = agePlayer, player_pos = slugPosition, player_team = slugTeamBREF
+  ) %>%
+  select(
+    season,starts_with("player_"), countGames, countGamesStarted, minutesPerGame,
+    trbPerGame, astPerGame, ptsPerGame, fg3mPerGame, stlPerGame, 
+    blkPerGame, pctFG, tovPerGame
+  ) %>%
+  filter(season %in% c(2022)) 
+```
+
+
+```{r}
+
+teams <-
+  df %>%
+  mutate_at(vars(trbPerGame:tovPerGame), list(rank = percent_rank)) %>%
+  rowwise() %>%
+  mutate(mean_rank = mean(c_across(ends_with("_rank")))) %>%
+  ungroup() %>%
+  arrange(mean_rank) %>%
+  mutate(team = rep(1:6, each = 1, length.out = nrow(.))) %>%
+  group_by(team) %>%
+  # Select top n players per team
+  slice_max(mean_rank, n = 8) 
+
+
+```
+
+
+```{r}
+
+teams %>%
+  group_by(team) %>%
+  summarize_at(vars(trbPerGame:tovPerGame), list(~sum(.))) %>%
+  pivot_longer(trbPerGame:tovPerGame,names_to = "category") %>%
+  ggplot(
+    aes(
+      x = tidytext::reorder_within(team, value, category), 
+      y = value
+    )
+  ) +
+  facet_grid(vars(category), scales = "free_x") +
+  geom_col() +
+  tidytext::scale_x_reordered() +
+  theme_minimal()
+
+```
+
