@@ -59,20 +59,27 @@ teams <-
 
 ```{r}
 
-teams %>%
+team_sum <-
+  teams %>%
   group_by(team) %>%
   summarize_at(vars(trbPerGame:tovPerGame), list(~sum(.))) %>%
-  pivot_longer(trbPerGame:tovPerGame,names_to = "category") %>%
-  ggplot(
-    aes(
-      x = tidytext::reorder_within(team, value, category), 
-      y = value
-    )
-  ) +
-  facet_grid(vars(category), scales = "free_x") +
-  geom_col() +
-  tidytext::scale_x_reordered() +
-  theme_minimal()
+  pivot_longer(trbPerGame:tovPerGame,names_to = "category") %>% 
+  group_by(category) %>%
+  mutate(
+    rank = cume_dist(value),
+    n_teams = n_distinct(team),
+    n_beats = rank * n_teams
+  )
 
+
+```
+
+
+```{r}
+team_sum  %>%
+  ggplot(aes(x = category, y = n_beats)) +
+  facet_grid(vars(team), scales = "free") +
+  geom_col() +
+  theme_minimal()
 ```
 
