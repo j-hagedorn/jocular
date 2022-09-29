@@ -12,6 +12,7 @@ player_season <- arrow::read_parquet("../data/player_season.parquet")
 # df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
 ```
 
+rank turnovers inversely
 
 ```{r}
 df <-
@@ -35,19 +36,48 @@ df <-
     trbPerGame, astPerGame, ptsPerGame, fg3mPerGame, stlPerGame, 
     blkPerGame, pctFG, tovPerGame
   ) %>%
-  filter(season %in% c(2022)) 
+  filter(season %in% c(2022)) %>%
+  mutate_at(vars(trbPerGame:pctFG), list(rank = percent_rank)) %>%
+  mutate(tovPerGame_rank = 1 - percent_rank(tovPerGame)) %>%
+  rowwise() %>%
+  mutate(mean_rank = mean(c_across(ends_with("_rank")))) %>%
+  ungroup() %>%
+  arrange(mean_rank)
 ```
+
+```{r}
+
+p <-
+  df %>%
+  select(player_id,player_name,player_pos,mean_rank,countGames) %>%
+  separate(player_pos, c("pos1","pos2","pos3"),"-") %>%
+  pivot_longer(pos1:pos3,names_to = "field",values_to = "pos") %>%
+  filter(!is.na(pos)) %>%
+  filter(countGames >=30) %>%
+  select(-field) %>%
+  group_by(pos) %>%
+  slice_max(mean_rank, n = 10) %>%
+  ggplot(
+    aes(x = fct_reorder(player_name,mean_rank,.desc = T), y = mean_rank)
+  ) +
+  geom_col(aes(fill = countGames)) +
+  facet_grid(cols = vars(pos), scales = "free") +
+  labs(
+    x = ""
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 90)) +
+  theme_minimal()
+
+ggplotly(p)
+
+```
+
 
 
 ```{r}
 
 teams <-
   df %>%
-  mutate_at(vars(trbPerGame:tovPerGame), list(rank = percent_rank)) %>%
-  rowwise() %>%
-  mutate(mean_rank = mean(c_across(ends_with("_rank")))) %>%
-  ungroup() %>%
-  arrange(mean_rank) %>%
   mutate(team = rep(1:6, each = 1, length.out = nrow(.))) %>%
   group_by(team) %>%
   # Select top n players per team
