@@ -12,7 +12,11 @@ player_season <- arrow::read_parquet("../data/player_season.parquet")
 # df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
 ```
 
-rank turnovers inversely
+# Preparation 
+
+- Filter players from each season with > 30 games
+- Include more than 1 year? (at least Include max year per player)
+- Filter out folks with < 15 minutes/game (e.g. Nicolas Batum, Frank Kaminsky, Isaiah Roby)
 
 ```{r}
 df <-
@@ -34,18 +38,24 @@ df <-
   select(
     season,starts_with("player_"), countGames, countGamesStarted, minutesPerGame,
     trbPerGame, astPerGame, ptsPerGame, fg3mPerGame, stlPerGame, 
-    blkPerGame, pctFG, tovPerGame
+    blkPerGame, pctFG, pctFT, tovPerGame, 
   ) %>%
-  filter(season %in% c(2022)) %>%
+  filter(countGames >= 30) %>%
+  group_by(player_id) %>%
+  filter(season == max(season)) %>%
+  ungroup() %>%
+  filter(season %in% c(2021, 2022)) %>%
   mutate_at(vars(trbPerGame:pctFG), list(rank = percent_rank)) %>%
+  # rank turnovers inversely
   mutate(tovPerGame_rank = 1 - percent_rank(tovPerGame)) %>%
   rowwise() %>%
   mutate(mean_rank = mean(c_across(ends_with("_rank")))) %>%
   ungroup() %>%
-  arrange(mean_rank)
+  arrange(mean_rank) %>%
+  select(-season) 
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 p <-
   df %>%
@@ -72,22 +82,21 @@ ggplotly(p)
 
 ```
 
+Maybe add serpentine ordering
 
-
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 teams <-
   df %>%
-  mutate(team = rep(1:6, each = 1, length.out = nrow(.))) %>%
+  mutate(team = rep(1:12, each = 1, length.out = nrow(.))) %>%
   group_by(team) %>%
   # Select top n players per team
-  slice_max(mean_rank, n = 8) 
+  slice_max(mean_rank, n = 13) 
 
 
 ```
 
-
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 team_sum <-
   teams %>%
@@ -101,15 +110,108 @@ team_sum <-
     n_beats = rank * n_teams
   )
 
-
-```
-
-
-```{r}
 team_sum  %>%
   ggplot(aes(x = category, y = n_beats)) +
   facet_grid(vars(team), scales = "free") +
   geom_col() +
   theme_minimal()
+
 ```
+
+
+# Test out picking
+
+
+
+Why? 
+
+- First round: High stats across many categories, when it's close pick based on `gamesPerYear`
+- Third round: What are the gaps from the previous players?
+- Position only matters later, once you get the best point-optimizing players
+
+```{r test_run}
+
+picks_01 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_02 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_03 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_04 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_05 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_06 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_07 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_08 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_09 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_10 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_11 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+picks_12 <- c("", "", "", "", "", "", "", "", "", "", "", "")
+
+picks <- c(picks_01,picks_02,picks_03,picks_04,picks_05,picks_06,picks_07,picks_08,picks_09,picks_10,picks_11,picks_12)
+
+unpicked <- 
+  df %>% 
+  filter(!player_name %in% picks) %>% 
+  arrange(desc(mean_rank)) %>%
+  select(player_name,player_pos,mean_rank,trbPerGame:tovPerGame)
+
+teams_picked <-
+  df %>%
+  filter(player_name %in% picks) %>%
+  mutate(
+    team = case_when(
+      player_name %in% picks_01 ~ "team_01",
+      player_name %in% picks_02 ~ "team_02_jub",
+      player_name %in% picks_03 ~ "team_03",
+      player_name %in% picks_04 ~ "team_04_chad",
+      player_name %in% picks_05 ~ "team_05",
+      player_name %in% picks_06 ~ "team_06",
+      player_name %in% picks_07 ~ "team_07_ezra",
+      player_name %in% picks_08 ~ "team_08",
+      player_name %in% picks_09 ~ "team_09",
+      player_name %in% picks_10 ~ "team_10",
+      player_name %in% picks_11 ~ "team_11",
+      player_name %in% picks_12 ~ "team_12"
+    )
+  )
+
+team_comp <-
+  teams_picked %>%
+  group_by(team) %>%
+  summarize_at(vars(trbPerGame:tovPerGame), list(~sum(.))) %>%
+  pivot_longer(trbPerGame:tovPerGame,names_to = "category") %>% 
+  group_by(category) %>%
+  mutate(
+    rank = cume_dist(value),
+    n_teams = n_distinct(team),
+    n_beats = rank * n_teams
+  )
+
+View(teams_picked); View(team_comp); View(unpicked)
+
+team_comp %>%
+  mutate(team = str_remove(team,"^team_")) %>%
+  ggplot(aes(x = category, y = n_beats)) +
+  facet_grid(vars(team), scales = "free") +
+  geom_col() +
+  scale_x_discrete(guide = guide_axis(angle = 90)) +
+  theme_minimal()
+
+```
+
+
+
+```{r archive, eval=FALSE, include=FALSE}
+picks_01 <- c("Nikola Jokic", "Jimmy Butler","Jaylen Brown","Darius Garland","Myles Turner", "D'Angelo Russell","Steven Adams","","","","","")
+picks_02 <- c("Giannis Antetokounmpo", "Fred VanVleet","Scottie Barnes","Zach LaVine", "Evan Mobley", "Michael Porter Jr.","Russell Westbrook","","","","","")
+picks_03 <- c("Luka Doncic", "Paul George", "Domantas Sabonis","Rudy Gobert","Terry Rozier","Al Horford","John Wall","","","","","")
+picks_04 <- c("LeBron James","Jrue Holiday", "Kristaps Porzingis","Donovan Mitchell","Jonas Valanciunas", "De'Aaron Fox","Jusuf Nurkic","","","","","")
+picks_05 <- c("James Harden","Nikola Vucevic","Andrew Wiggins","Wendell Carter Jr.", "DeMar DeRozan", "Jamal Murray","Mitchell Robinson","","","","","")
+picks_06 <- c("Karl-Anthony Towns","Dejounte Murray","Mikal Bridges","Damian Lillard", "Jarrett Allen","Clint Capela","Kyle Lowry","Tyrese Maxey","","","","")
+picks_07 <- c("Joel Embiid","Devin Booker","CJ McCollum","Tobias Harris","Bradley Beal","Ben Simmons","P.J. Washington","Jordan Poole","","","","")
+picks_08 <- c("Jayson Tatum","Anthony Edwards","Desmond Bane","Trae Young", "Robert Williams III","Julius Randle","Dorian Finney-Smith","Victor Oladipo","","","","")
+picks_09 <- c("Kevin Durant","LaMelo Ball", "John Collins","Chris Paul","Deandre Ayton","Klay Thompson","Marcus Smart","Onyeka Okongwu","","","","")
+picks_10 <- c("Pascal Siakam","Ja Morant", "Khris Middleton","Christian Wood","Kyrie Irving","Kawhi Leonard","Jakob Poeltl","Tyler Herro","","","","")
+picks_11 <- c("Anthony Davis","Tyrese Haliburton","Cade Cunningham","OG Anunoby", "Gary Trent Jr.", "Zion Williamson","Gordon Hayward","Malcolm Brogdon", "","","","")
+picks_12 <- c("Shai Gilgeous-Alexander","Stephen Curry","Bam Adebayo","Draymond Green", "Brandon Ingram","Kyle Kuzma","Devin Vassell","Collin Sexton","","","","")
+```
+
+
 
