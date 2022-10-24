@@ -193,6 +193,55 @@ team_comp %>%
 ```
 
 
+```{r}
+library(lubridate)
+
+games <-
+  arrow::read_parquet("../data/games.parquet") %>%
+  filter(yearSeason == 2022) %>%
+  select(
+    game_id = idGame, game_date = dateGame,  
+    player_id = idPlayer, player_name = namePlayer, 
+    minutes,pts,fg3m,pctFG,pctFT,ast,treb,stl,blk,tov
+  ) %>%
+  filter(player_name %in% picks) %>%
+  mutate(
+    game_week = floor_date(ymd(game_date), unit="week",week_start=1)
+  ) %>%
+  mutate(
+    team = case_when(
+      player_name %in% picks_01 ~ "team_01",
+      player_name %in% picks_02 ~ "team_02_jub",
+      player_name %in% picks_03 ~ "team_03",
+      player_name %in% picks_04 ~ "team_04_chad",
+      player_name %in% picks_05 ~ "team_05",
+      player_name %in% picks_06 ~ "team_06",
+      player_name %in% picks_07 ~ "team_07_ezra",
+      player_name %in% picks_08 ~ "team_08",
+      player_name %in% picks_09 ~ "team_09",
+      player_name %in% picks_10 ~ "team_10",
+      player_name %in% picks_11 ~ "team_11",
+      player_name %in% picks_12 ~ "team_12"
+    )
+  )
+
+
+game_weeks <-
+  games %>%
+  group_by(team, game_week) %>%
+  summarize_at(vars(pts:tov),list(~sum(., na.rm = T))) %>%
+  pivot_longer(pts:tov, names_to = "stat", values_to = "value")
+
+
+game_weeks %>%
+  ggplot(aes(x = game_week, y = value, color = team)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(vars(stat), scales = "free") +
+  paletteer::scale_color_paletteer_d("colorBlindness::paletteMartin") +
+  theme_minimal()
+```
+
 
 ```{r archive, eval=FALSE, include=FALSE}
 picks_01 <- c("Nikola Jokic", "Jimmy Butler","Jaylen Brown","Darius Garland","Myles Turner", "D'Angelo Russell","Steven Adams","","","","","")
