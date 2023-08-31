@@ -14,7 +14,6 @@ nba_players_08_19 <-
 
 
 
-
 library(plotly)
 
 p <-
