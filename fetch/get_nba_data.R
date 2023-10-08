@@ -3,42 +3,26 @@ library(nbastatR);library(tidyverse)
 # https://github.com/rajshah4/BasketballData
 # http://asbcllc.com/nbastatR/index.html
 
-nba_players_08_19 <-
-  bref_players_stats(
-    seasons = 2008:2019, 
-    tables = c("advanced", "totals", "per_game"),
-    include_all_nba = T, 
-    only_totals = TRUE, 
-    assign_to_environment = F
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 2)
+
+games <-
+  game_logs(
+    seasons = 1959:2023, league = "NBA", result_types = "player",
+    season_types = "Regular Season", nest_data = F,
+    assign_to_environment = TRUE, return_message = TRUE
   )
 
+player_season <- bref_players_stats(seasons = 1978:2022, tables = c("advanced", "totals", "per_game"))
+drafts <- drafts(draft_years = 2023, nest_data = F, return_message = T)
 
-
-library(plotly)
-
-p <-
-nba_players_08_19 %>%
-  filter(yearSeason == 2018) %>%
-  ggplot(
-    aes(
-      x = stlPerGame,
-      y = blkPerGame,
-      color = minutesPerGame
-    )
-  ) +
-  geom_point(alpha = 0.3) +
-  theme_minimal() 
-
-nba_players_08_19 %>%
-  filter(yearSeason == 2018) %>%
-  plot_ly(
-    x = ~stlPerGame,
-    y = ~blkPerGame,
-    color = ~minutesPerGame,
-    hoverinfo = 'text',
-    text = ~paste0(
-      "Player: ", namePlayer
-    )
-  ) %>%
-  add_markers()
+arrow::write_parquet(games,"data/games.parquet")
+arrow::write_parquet(player_season,"data/player_season.parquet")
+arrow::write_parquet(drafts,"data/drafts.parquet")
+arrow::write_parquet(df_nba_player_dict,"../data/df_nba_player_dict.parquet")
   
+
+player_season <- arrow::read_parquet("data/player_season.parquet")
+games <- arrow::read_parquet("data/games.parquet")
+
+
+
