@@ -16,7 +16,7 @@ player_season <- arrow::read_parquet("../data/player_season.parquet")
 
 - Filter players from each season with > 30 games
 - Include more than 1 year? (at least Include max year per player)
-- Filter out folks with < 15 minutes/game (e.g. Nicolas Batum, Frank Kaminsky, Isaiah Roby)
+- Filter out folks with < 15 minutes/game (*e.g. Nicolas Batum, Frank Kaminsky, Isaiah Roby*)
 
 ```{r}
 df <-
@@ -38,13 +38,13 @@ df <-
   select(
     season,starts_with("player_"), countGames, countGamesStarted, minutesPerGame,
     trbPerGame, astPerGame, ptsPerGame, fg3mPerGame, stlPerGame, 
-    blkPerGame, pctFG, pctFT, tovPerGame, 
+    blkPerGame, pctFG, pctFT, tovPerGame
   ) %>%
   filter(countGames >= 30) %>%
   group_by(player_id) %>%
   filter(season == max(season)) %>%
   ungroup() %>%
-  filter(season %in% c(2021, 2022)) %>%
+  filter(season %in% c(2022, 2023)) %>%
   mutate_at(vars(trbPerGame:pctFG), list(rank = percent_rank)) %>%
   # rank turnovers inversely
   mutate(tovPerGame_rank = 1 - percent_rank(tovPerGame)) %>%
@@ -72,9 +72,7 @@ p <-
   ) +
   geom_col(aes(fill = countGames)) +
   facet_grid(cols = vars(pos), scales = "free") +
-  labs(
-    x = ""
-  ) +
+  labs(x = "") +
   scale_x_discrete(guide = guide_axis(angle = 90)) +
   theme_minimal()
 
@@ -118,6 +116,9 @@ team_sum  %>%
 
 ```
 
+incorporate mins_game and games_played
+for each round, sort on the stats and positions needed by the team picking
+strategies (a) dominate minimum N of categories to assure wins, (b) balance performance to be high across almost all categories
 
 # Test out picking
 
@@ -127,18 +128,18 @@ team_sum  %>%
 
 ```{r test_run}
 
-picks_01 <- c("Nikola Jokic", "Fred VanVleet", "Jimmy Butler", "Scottie Barnes", "Desmond Bane", "Al Horford", "Tre Jones", "Jaren Jackson Jr.", "Tari Eason", "Alex Caruso", "Jaden Ivy", "Aaron Gordon", "Jerami Grant")
-picks_02 <- c("Luka Doncic", "Bam Adebayo", "Donovan Mitchell", "Kristaps Porzingis", "Terry Rozier", "Collin Sexton", "Mitchell Robinson", "Jabari Smith", "Cameron Johnson", "Russell Westbrook", "Malcolm Brogdon", "Patrick Williams", "Walker K")
-picks_03 <- c("Giannis Antetokounmpo", "Ja Morant", "Domantas Sabonis", "CJ McCollum", "Khris Middleton", "Christian Wood", "Wendell Carter Jr.", "Kyle Lowry", "Saddiq Bey", "Harrison Barnes", "Jaden McDaniels", "Derrick White", "Bogdan Bogdanovic")
-picks_04 <- c("Joel Embiid", "Dejounte Murray", "Rudy Gobert", "Nikola Vucevic", "Tyrese Maxey", "Jalen Green", "Lauri Markkanen", "Keegan Murray", "Robert Williams III", "Kyle Kuzma", "Nic Claxton", "Benedict", "Dillon Brooks")
-picks_05 <- c("Kevin Durant", "Kyrie Irving", "Darius Garland", "De'Aaron Fox", "Michael Porter Jr.", "Keldon Johnson", "Julius Randle", "Buddy Hield", "Onyeka Okongwu", "Jalen Smith", "Mike Conley", "Bones Hyland", "Isaiah Stewart")
-picks_06 <- c("Karl-Anthony Towns", "Kawhi Leonard", "Jrue Holiday", "Chris Paul", "Ben Simmons", "Mikal Bridges", "Paolo", "Kevin Porter Jr.", "Herbert Jones", "Isaiah Jackson", "Isaiah Hartenstein", "Robert Covington", "Jordan Clarkson")
-picks_07 <- c("Jayson Tatum", "Anthony Edwards", "Pascal Siakam", "Shai Gilgeous-Alexander", "John Collins", "Jalen Brunson", "D'Angelo Russell", "Clint Capela", "Tobias Harris", "De'Anthony Melton", "Cole Anthony", "Dorian Finney-Smith", "Steven Adams")
-picks_08 <- c("Stephen Curry", "LeBron James", "Zion Williamson", "Deandre Ayton", "Jamal Murray", "Franz Wagner", "Jakob Poeltl", "RJ Barrett", "Spencer Dinwiddie", "John Wall", "Norman Powell", "JaVale McGee", "Matisse Thybulle")
-picks_09 <- c("Damian Lillard", "Paul George", "DeMar DeRozan", "Jaylen Brown", "Jonas Valanciunas", "Jusuf Nurkic", "Marcus Smart", "Gary Trent Jr.", "Ivica Zubac", "Ayo Dosunmu", "Jarred Vanderbilt", "Brook Lopez", "Richaun Holmes")
-picks_10 <- c("Anthony Davis", "Devin Booker", "Cade Cunningham", "Evan Mobley", "Josh Giddey", "OG Anunoby", "Draymond Green", "Andrew Wiggins", "Brandon Clarke", "Bobby Portis", "Luguentz Dort", "Kevin Love", "Reggie Jackson")
-picks_11 <- c("James Harden", "Trae Young", "Bradley Beal", "Myles Turner", "Brandon Ingram", "Jordan Poole", "Tyler Herro", "Anfernee Simons", "Gordon Hayward", "James Wiseman", "Josh Hart", "Kevin Huerter", "Aleksej Pokusevski")
-picks_12 <- c("Tyrese Haliburton", "LaMelo Ball", "Zach LaVine", "Jarrett Allen", "Klay Thompson", "Alperen Sengun", "Devin Vassell", "P.J. Washington", "Monte Morris", "Kelly Oubre Jr.", "Kelly Olynyk", "Mo Bamba", "Santi Aldama")
+picks_01 <- c("Nikola Jokic","Damian Lillard","Devin Booker","Evan Mobley","De'Aaron Fox","Bruce Brown","Kyle Kuzma","Tyrese Maxey","John Collins","","","")
+picks_02 <- c("Shai Gilgeous-Alexander","Jaren Jackson Jr.","Cade Cunningham","Victor Wembanyama","Jaden McDaniels","DeMar DeRozan","Scoot Henderson","Ben Simmons","Rudy Gobert","","","")
+picks_03 <- c("Kyrie Irving","Al Horford","Donovan Mitchell","Trey Murphy III","Jerami Grant","Brook Lopez","Kelly Olynyk","D'Angelo Russell","Christian Wood","","","")
+picks_04 <- c("Luka Doncic","Anthony Davis","Domantas Sabonis","Bradley Beal","Buddy Hield","Derrick White","Michael Porter Jr.","Herbert Jones","Terry Rozier","","","")
+picks_05 <- c("Jayson Tatum","James Harden","Pascal Siakam","Fred VanVleet","Bam Adebayo","Draymond Green","Zach LaVine","Tyler Herro","Wendell Carter Jr.","","","")
+picks_06 <- c("Karl-Anthony Towns","Andrew Wiggins","Nikola Vucevic","Tobias Harris","P.J. Washington","Nic Claxton","Jusuf Nurkic","Josh Hart","Larry Nance Jr.","","","")
+picks_07 <- c("Joel Embiid","Mikal Bridges","LaMelo Ball","Cameron Johnson","Scottie Barnes","Julius Randle","Jalen Brunson","Jarrett Allen","Russell Westbrook","","","")
+picks_08 <- c("Tyrese Haliburton","Desmond Bane","OG Anunoby","Lauri Markkanen","Alperen Sengun","Devin Vassell","Darius Garland","Deandre Ayton","Klay Thompson","","","")
+picks_09 <- c("Kawhi Leonard","Miles Bridges","Lonzo Ball","Jrue Holiday","Jalen Williams","Otto Porter Jr.","Kevin Porter Jr.","Kevin Huerter","Kevon Looney","","","")
+picks_10 <- c("Stephen Curry","Giannis Antetokounmpo","Jaylen Brown","Dejounte Murray","Josh Giddey","Brandon Ingram","Trae Young","Paolo Banchero","","","","")
+picks_11 <- c("Kevin Durant","Anthony Edwards","Myles Turner","Jimmy Butler","Keegan Murray","Ja Morant","Jamal Murray","Franz Wagner","","","","")
+picks_12 <- c("LeBron James","Kristaps Porzingis","Paul George","Aaron Gordon","CJ McCollum","Kyle Anderson","Chris Paul","Jakob Poeltl","","","","")
 
 picks <- c(picks_01,picks_02,picks_03,picks_04,picks_05,picks_06,picks_07,picks_08,picks_09,picks_10,picks_11,picks_12)
 
@@ -154,12 +155,12 @@ teams_picked <-
   mutate(
     team = case_when(
       player_name %in% picks_01 ~ "team_01",
-      player_name %in% picks_02 ~ "team_02_jub",
+      player_name %in% picks_02 ~ "team_02",
       player_name %in% picks_03 ~ "team_03",
-      player_name %in% picks_04 ~ "team_04_chad",
+      player_name %in% picks_04 ~ "team_04",
       player_name %in% picks_05 ~ "team_05",
       player_name %in% picks_06 ~ "team_06",
-      player_name %in% picks_07 ~ "team_07_ezra",
+      player_name %in% picks_07 ~ "team_07",
       player_name %in% picks_08 ~ "team_08",
       player_name %in% picks_09 ~ "team_09",
       player_name %in% picks_10 ~ "team_10",
