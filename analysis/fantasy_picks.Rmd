@@ -18,7 +18,8 @@ player_season <- arrow::read_parquet("../data/player_season.parquet")
 - Include more than 1 year? (at least Include max year per player)
 - Filter out folks with < 15 minutes/game (*e.g. Nicolas Batum, Frank Kaminsky, Isaiah Roby*)
 
-```{r}
+```{r make_df}
+
 df <-
   player_season %>%
   select(
@@ -53,6 +54,7 @@ df <-
   ungroup() %>%
   arrange(mean_rank) %>%
   select(-season) 
+
 ```
 
 ```{r eval=FALSE, include=FALSE}
@@ -77,42 +79,6 @@ p <-
   theme_minimal()
 
 ggplotly(p)
-
-```
-
-Maybe add serpentine ordering
-
-```{r eval=FALSE, include=FALSE}
-
-teams <-
-  df %>%
-  mutate(team = rep(1:12, each = 1, length.out = nrow(.))) %>%
-  group_by(team) %>%
-  # Select top n players per team
-  slice_max(mean_rank, n = 13) 
-
-
-```
-
-```{r eval=FALSE, include=FALSE}
-
-team_sum <-
-  teams %>%
-  group_by(team) %>%
-  summarize_at(vars(trbPerGame:tovPerGame), list(~sum(.))) %>%
-  pivot_longer(trbPerGame:tovPerGame,names_to = "category") %>% 
-  group_by(category) %>%
-  mutate(
-    rank = cume_dist(value),
-    n_teams = n_distinct(team),
-    n_beats = rank * n_teams
-  )
-
-team_sum  %>%
-  ggplot(aes(x = category, y = n_beats)) +
-  facet_grid(vars(team), scales = "free") +
-  geom_col() +
-  theme_minimal()
 
 ```
 
@@ -169,6 +135,36 @@ teams_picked <-
     )
   )
 
+
+allowed_pos <- 
+  expand_grid(
+    team = c(
+      "team_01","team_02","team_03","team_04",
+      "team_05","team_06","team_07","team_08",
+      "team_09","team_10","team_11","team_12"
+    ),
+    player_pos = c(
+      "C","C","PF","PF","SF","SF","PG","PG","SG","SG"
+    )
+  ) %>%
+  left_join(
+    teams_picked %>% 
+      select(team,player_pos) %>%
+      mutate(incl = T),
+    by = c("team","player_pos")
+  )
+
+
+team_pos <-
+  teams_picked %>%
+  select(team,player_pos) %>%
+  group_by(team,player_pos) %>%
+  summarize(n = n())
+
+%>%
+  nest(player_pos) %>%
+  rename(player_pos = data)
+
 team_comp <-
   teams_picked %>%
   group_by(team) %>%
@@ -179,7 +175,8 @@ team_comp <-
     rank = cume_dist(value),
     n_teams = n_distinct(team),
     n_beats = rank * n_teams
-  )
+  ) %>%
+  left_join(team_pos, by = "team")
 
 View(teams_picked); View(team_comp); View(unpicked)
 
