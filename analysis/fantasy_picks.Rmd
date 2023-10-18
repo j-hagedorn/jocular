@@ -92,7 +92,7 @@ strategies (a) dominate minimum N of categories to assure wins, (b) balance perf
 - Third round: What are the gaps from the previous players?
 - Position only matters later, once you get the best point-optimizing players
 
-```{r test_run}
+```{r pick_teams}
 
 picks_01 <- c("Nikola Jokic","Damian Lillard","Devin Booker","Evan Mobley","De'Aaron Fox","Bruce Brown","Kyle Kuzma","Tyrese Maxey","John Collins","","","")
 picks_02 <- c("Shai Gilgeous-Alexander","Jaren Jackson Jr.","Cade Cunningham","Victor Wembanyama","Jaden McDaniels","DeMar DeRozan","Scoot Henderson","Ben Simmons","Rudy Gobert","","","")
@@ -108,6 +108,10 @@ picks_11 <- c("Kevin Durant","Anthony Edwards","Myles Turner","Jimmy Butler","Ke
 picks_12 <- c("LeBron James","Kristaps Porzingis","Paul George","Aaron Gordon","CJ McCollum","Kyle Anderson","Chris Paul","Jakob Poeltl","","","","")
 
 picks <- c(picks_01,picks_02,picks_03,picks_04,picks_05,picks_06,picks_07,picks_08,picks_09,picks_10,picks_11,picks_12)
+
+```
+
+```{r}
 
 unpicked <- 
   df %>% 
@@ -209,12 +213,12 @@ games <-
   mutate(
     team = case_when(
       player_name %in% picks_01 ~ "team_01",
-      player_name %in% picks_02 ~ "team_02_jub",
+      player_name %in% picks_02 ~ "team_02",
       player_name %in% picks_03 ~ "team_03",
-      player_name %in% picks_04 ~ "team_04_chad",
+      player_name %in% picks_04 ~ "team_04",
       player_name %in% picks_05 ~ "team_05",
       player_name %in% picks_06 ~ "team_06",
-      player_name %in% picks_07 ~ "team_07_ezra",
+      player_name %in% picks_07 ~ "team_07",
       player_name %in% picks_08 ~ "team_08",
       player_name %in% picks_09 ~ "team_09",
       player_name %in% picks_10 ~ "team_10",
