@@ -12,11 +12,11 @@ player_season <- arrow::read_parquet("../data/player_season.parquet")
 # df_nba_player_dict <- arrow::read_parquet("data/df_nba_player_dict.parquet")
 ```
 
-# Preparation 
+# Preparation
 
-- Filter players from each season with > 30 games
-- Include more than 1 year? (at least Include max year per player)
-- Filter out folks with < 15 minutes/game (*e.g. Nicolas Batum, Frank Kaminsky, Isaiah Roby*)
+-   Filter players from each season with \> 30 games
+-   Include more than 1 year? (at least Include max year per player)
+-   Filter out folks with \< 15 minutes/game (*e.g. Nicolas Batum, Frank Kaminsky, Isaiah Roby*)
 
 ```{r make_df}
 
@@ -82,15 +82,13 @@ ggplotly(p)
 
 ```
 
-incorporate mins_game and games_played
-for each round, sort on the stats and positions needed by the team picking
-strategies (a) dominate minimum N of categories to assure wins, (b) balance performance to be high across almost all categories
+incorporate mins_game and games_played for each round, sort on the stats and positions needed by the team picking strategies (a) dominate minimum N of categories to assure wins, (b) balance performance to be high across almost all categories
 
 # Test out picking
 
-- First round: High stats across many categories, when it's close pick based on `gamesPerYear`
-- Third round: What are the gaps from the previous players?
-- Position only matters later, once you get the best point-optimizing players
+-   First round: High stats across many categories, when it's close pick based on `gamesPerYear`
+-   Third round: What are the gaps from the previous players?
+-   Position only matters later, once you get the best point-optimizing players
 
 ```{r pick_teams}
 
@@ -161,19 +159,22 @@ allowed_pos <-
 
 team_pos <-
   teams_picked %>%
-  select(team,player_pos) %>%
-  group_by(team,player_pos) %>%
-  summarize(n = n())
+  arrange(team,pos) %>%
+  group_by(team) %>%
+  summarize(pos = paste(pos,collapse = ","))
 
-%>%
-  nest(player_pos) %>%
-  rename(player_pos = data)
+team_pos <-
+  teams_picked %>%
+  select(team,pos) %>%
+  arrange(team,pos) %>%
+  nest(pos) %>%
+  rename(pos = data)
 
 team_comp <-
   teams_picked %>%
   group_by(team) %>%
-  summarize_at(vars(trbPerGame:tovPerGame), list(~sum(.))) %>%
-  pivot_longer(trbPerGame:tovPerGame,names_to = "category") %>% 
+  summarize_at(vars(rebounds:turnovers), list(~sum(.))) %>%
+  pivot_longer(rebounds:turnovers,names_to = "category") %>% 
   group_by(category) %>%
   mutate(
     rank = cume_dist(value),
@@ -181,6 +182,19 @@ team_comp <-
     n_beats = rank * n_teams
   ) %>%
   left_join(team_pos, by = "team")
+
+
+tst <-
+  team_comp %>%
+  group_by(team,pos) %>%
+  summarise(
+    matches = sum(n_teams),
+    wins = sum(n_beats)
+  ) %>%
+  ungroup() %>%
+  mutate(pct_wins = round(wins/matches, digits = 3)) %>%
+  select(team,pos,pct_wins) %>%
+  arrange(pct_wins)
 
 View(teams_picked); View(team_comp); View(unpicked)
 
@@ -193,7 +207,6 @@ team_comp %>%
   theme_minimal()
 
 ```
-
 
 ```{r}
 library(lubridate)
@@ -244,7 +257,6 @@ game_weeks %>%
   theme_minimal()
 ```
 
-
 ```{r archive, eval=FALSE, include=FALSE}
 picks_01 <- c("Nikola Jokic", "Jimmy Butler","Jaylen Brown","Darius Garland","Myles Turner", "D'Angelo Russell","Steven Adams","","","","","")
 picks_02 <- c("Giannis Antetokounmpo", "Fred VanVleet","Scottie Barnes","Zach LaVine", "Evan Mobley", "Michael Porter Jr.","Russell Westbrook","","","","","")
@@ -259,6 +271,3 @@ picks_10 <- c("Pascal Siakam","Ja Morant", "Khris Middleton","Christian Wood","K
 picks_11 <- c("Anthony Davis","Tyrese Haliburton","Cade Cunningham","OG Anunoby", "Gary Trent Jr.", "Zion Williamson","Gordon Hayward","Malcolm Brogdon", "","","","")
 picks_12 <- c("Shai Gilgeous-Alexander","Stephen Curry","Bam Adebayo","Draymond Green", "Brandon Ingram","Kyle Kuzma","Devin Vassell","Collin Sexton","","","","")
 ```
-
-
-

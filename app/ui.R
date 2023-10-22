@@ -1,6 +1,6 @@
 ui <- page_sidebar(
-  title = "Draft Picks",
-  sidebar = uiOutput("sidebar"),
+  title = "NBA Fantasy Draft",
+  sidebar = sidebar(open = "closed"),
   theme = bs_theme(bootswatch = "superhero"),
   navset_pill(
     nav_panel(
