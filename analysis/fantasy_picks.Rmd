@@ -213,7 +213,7 @@ library(lubridate)
 
 games <-
   arrow::read_parquet("../data/games.parquet") %>%
-  filter(yearSeason == 2022) %>%
+  filter(yearSeason == 2023) %>%
   select(
     game_id = idGame, game_date = dateGame,  
     player_id = idPlayer, player_name = namePlayer, 

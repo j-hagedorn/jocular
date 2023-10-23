@@ -7,7 +7,7 @@ server <-
       
       layout_column_wrap(
         width = NULL, 
-        height = 550,
+        height = 600,
         style = htmltools::css(grid_template_columns = "2fr 1fr"),
         card(
           full_screen = TRUE,
@@ -21,7 +21,7 @@ server <-
                 label = "Games per season",
                 min = min(df$games,na.rm = T),
                 max = max(df$games,na.rm = T),
-                value = c(40,max(df$games,na.rm = T))
+                value = c(min(df$games,na.rm = T),max(df$games,na.rm = T))
               )
             ),
             DT::dataTableOutput("unpicked")
@@ -39,6 +39,22 @@ server <-
             "Bars",
             plotlyOutput("team_bars")
           )
+        )
+      )
+      
+    })
+    
+    output$nav_other <- renderUI({
+      
+      layout_column_wrap(
+        width = NULL, 
+        height = 550,
+        style = htmltools::css(grid_template_columns = "2fr 1fr"),
+        card(
+          full_screen = TRUE,
+          # style = "resize:horizontal;",
+          card_header("Weeks"),
+          card_body(plotlyOutput("team_weeks"))
         )
       )
       
@@ -89,6 +105,40 @@ server <-
       
     })
     
+    # team_games <- reactive({
+    #   
+    #   games_df %>%
+    #     select(
+    #       game_id = idGame, game_date = dateGame,  
+    #       player_id = idPlayer, player_name = namePlayer, 
+    #       minutes,pts,fg3m,pctFG,pctFT,ast,treb,stl,blk,tov
+    #     ) %>%
+    #     filter(player_name %in% picks) %>%
+    #     mutate(
+    #       game_week = floor_date(ymd(game_date), unit="week",week_start=1)
+    #     ) %>%
+    #     mutate(
+    #       team = case_when(
+    #         player_name %in% picks_01 ~ "team_01",
+    #         player_name %in% picks_02 ~ "team_02",
+    #         player_name %in% picks_03 ~ "team_03",
+    #         player_name %in% picks_04 ~ "team_04",
+    #         player_name %in% picks_05 ~ "team_05",
+    #         player_name %in% picks_06 ~ "team_06",
+    #         player_name %in% picks_07 ~ "team_07",
+    #         player_name %in% picks_08 ~ "team_08",
+    #         player_name %in% picks_09 ~ "team_09",
+    #         player_name %in% picks_10 ~ "team_10",
+    #         player_name %in% picks_11 ~ "team_11",
+    #         player_name %in% picks_12 ~ "team_12"
+    #       )
+    #     ) %>%
+    #     group_by(team, game_week) %>%
+    #     summarize_at(vars(pts:tov),list(~sum(., na.rm = T))) %>%
+    #     pivot_longer(pts:tov, names_to = "stat", values_to = "value")
+    #   
+    # })
+    
     # Interactive Visuals
     
     output$unpicked <- DT::renderDataTable({
@@ -120,15 +170,16 @@ server <-
             render = JS("$.fn.dataTable.render.ellipsis( 5, false )")
           ))
         )
-      ) # %>%
-      # DT::formatStyle(
-      #   'rank',
-      #   background = styleColorBar(unpicked$rank, 'steelblue'),
-      #   backgroundSize = '100% 90%',
-      #   backgroundRepeat = 'no-repeat',
-      #   backgroundPosition = 'center'
-      # )
-      
+      ) %>%
+      DT::formatStyle('pts',background = styleColorBar(unpicked$pts, 'steelblue')) %>%
+      DT::formatStyle('threes',background = styleColorBar(unpicked$threes, 'steelblue')) %>%
+      DT::formatStyle('pctFG',background = styleColorBar(unpicked$pctFG, 'steelblue')) %>%
+      DT::formatStyle('pctFT',background = styleColorBar(unpicked$pctFT, 'steelblue')) %>%
+      DT::formatStyle('assists',background = styleColorBar(unpicked$assists, 'steelblue')) %>%
+      DT::formatStyle('turnovers',background = styleColorBar(unpicked$turnovers, 'steelblue'))%>%
+      DT::formatStyle('steals',background = styleColorBar(unpicked$steals, 'steelblue')) %>%
+      DT::formatStyle('rebounds',background = styleColorBar(unpicked$rebounds, 'steelblue')) %>%
+      DT::formatStyle('blocks',background = styleColorBar(unpicked$blocks, 'steelblue'))
     })
     
     output$team_tbl <- DT::renderDataTable({
@@ -182,6 +233,21 @@ server <-
           axis.ticks.y=element_blank()  #remove y axis ticks
         )
         
+      ggplotly(p)
+      
+    })
+    
+    output$team_weeks <- renderPlotly({
+      
+      p <- 
+        team_games() %>%
+        ggplot(aes(x = game_week, y = value, color = team)) +
+        geom_line() +
+        geom_point() +
+        facet_grid(vars(stat), scales = "free") +
+        paletteer::scale_color_paletteer_d("colorBlindness::paletteMartin") +
+        theme_minimal()
+      
       ggplotly(p)
       
     })
