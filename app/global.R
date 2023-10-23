@@ -1,8 +1,8 @@
 library(tidyverse); library(shiny); library(bslib)
 library(plotly); library(paletteer); library(DT)
-# games <- arrow::read_parquet("data/games.parquet")
 player_season <- arrow::read_parquet("../data/player_season.parquet")
 drafts <- arrow::read_parquet("../data/drafts.parquet")
+# games_df <- arrow::read_parquet("../data/games.parquet") %>% filter(yearSeason == 2023)
 
 df <-
   player_season %>%
@@ -50,27 +50,16 @@ df <-
   ) %>%
   filter(player_id != 0)
 
-picks_01 <- c("","","","","","","","","","","","","")
-picks_02 <- c("","","","","","","","","","","","","")
-picks_03 <- c("","","","","","","","","","","","","")
-picks_04 <- c("","","","","","","","","","","","","")
-picks_05 <- c("","","","","","","","","","","","","")
-picks_06 <- c("","","","","","","","","","","","","")
-picks_07 <- c("","","","","","","","","","","","","")
-picks_08 <- c("","","","","","","","","","","","","")
-picks_09 <- c("","","","","","","","","","","","","")
-picks_10 <- c("","","","","","","","","","","","","")
-
-# picks_01 <- c("Nikola Jokic","Damian Lillard","Devin Booker","Evan Mobley","De'Aaron Fox","Bruce Brown","Kyle Kuzma","Tyrese Maxey","John Collins","Kevin Durant","Anthony Edwards","Myles Turner") # picks_01
-# picks_02 <- c("Shai Gilgeous-Alexander","Jaren Jackson Jr.","Cade Cunningham","Victor Wembanyama","Jaden McDaniels","DeMar DeRozan","Scoot Henderson","Ben Simmons","Rudy Gobert","Mitchell Robinson","Kelly Oubre Jr.","Cody Martin")  # picks_02
-# picks_03 <- c("Kyrie Irving","Al Horford","Donovan Mitchell","Trey Murphy III","Jerami Grant","Brook Lopez","Kelly Olynyk","D'Angelo Russell","Christian Wood","Malcolm Brogdon","Kenrich Williams","Caleb Martin") # picks_03
-# picks_04 <- c("Luka Doncic","Anthony Davis","Domantas Sabonis","Bradley Beal","Buddy Hield","Derrick White","Michael Porter Jr.","Herbert Jones","Terry Rozier","Immanuel Quickley","Spencer Dinwiddie","Jarred Vanderbilt") # picks_04
-# picks_05 <- c("Jayson Tatum","James Harden","Pascal Siakam","Fred VanVleet","Bam Adebayo","Draymond Green","Zach LaVine","Tyler Herro","Wendell Carter Jr.","Jakob Poeltl","Jae Crowder","Kentavious Caldwell-Pope") # picks_05
-# picks_06 <- c("Karl-Anthony Towns","Andrew Wiggins","Nikola Vucevic","Tobias Harris","P.J. Washington","Nic Claxton","Jusuf Nurkic","Josh Hart","Larry Nance Jr.","Clint Capela","Steven Adams","Mason Plumlee") # picks_06
-# picks_07 <- c("Joel Embiid","Mikal Bridges","LaMelo Ball","Cameron Johnson","Scottie Barnes","Julius Randle","Jalen Brunson","Jarrett Allen","Russell Westbrook","CJ McCollum","Kyle Anderson","Chris Paul") # picks_07
-# picks_08 <- c("Tyrese Haliburton","Desmond Bane","OG Anunoby","Lauri Markkanen","Alperen Sengun","Devin Vassell","Darius Garland","Deandre Ayton","Klay Thompson","Jamal Murray","Franz Wagner","De'Anthony Melton") # picks_08
-# picks_09 <- c("Kawhi Leonard","Miles Bridges","Lonzo Ball","Jrue Holiday","Jalen Williams","Otto Porter Jr.","Kevin Porter Jr.","Kevin Huerter","Kevon Looney","Jimmy Butler","Keegan Murray","Ja Morant") # picks_09
-# picks_10 <- c("Stephen Curry","Giannis Antetokounmpo","Jaylen Brown","Dejounte Murray","Josh Giddey","Brandon Ingram","Trae Young","Paolo Banchero","LeBron James","Kristaps Porzingis","Paul George","Aaron Gordon") # picks_10
+picks_01 <- c("Nikola Jokic","Jimmy Butler","Fred VanVleet","Darius Garland","Kristaps Porzingis","Zach LaVine","Alperen Sengun","Onyeka Okongwu","Khris Middleton","D'Angelo Russell","Robert Williams III","P.J. Washington","Bruce Brown")
+picks_02 <- c("Joel Embiid","Kyrie Irving","Mikal Bridges","Kawhi Leonard","Jamal Murray","Deandre Ayton","Julius Randle","Michael Porter Jr.","Draymond Green","Tre Jones","Jalen Duren","Kevin Huerter","Herbert Jones")
+picks_03 <- c("Luka Doncic","Devin Booker","Victor","Paul George","DeMar DeRozan","Nikola Vucevic","Chris Paul","Kyle Kuzma","Jabari Smith Jr.","Scoot","John Collins","Ausur","Spencer Dinwiddie")
+picks_04 <- c("Shai Gilgeous-Alexander","Jaren Jackson Jr.","Cade Cunningham","Chet","Scottie Barnes","Brandon Ingram","Tyus Jones","Tyler Herro","Terry Rozier","Al Horford","Russell Westbrook","Tari Eason","Mitchell Robinson")
+picks_05 <- c("Jayson Tatum","LaMelo Ball","Desmond Bane","James Harden","Jalen Brunson","Josh Giddey","Brook Lopez","Mark Williams","Markelle Fultz","Andrew Wiggins","Bobby Portis","Keldon Johnson","Trey Murphy III")
+picks_06 <- c("Giannis Antetokounmpo","Trae Young","Dejounte Murray","Jaylen Brown","Walker Kessler","Cameron Johnson","Devin Vassell","Jerami Grant","Derrick White","Clint Capela","Jaden McDaniels","Jordan Clarkson","Josh Hart")
+picks_07 <- c("Tyrese Haliburton","Domantas Sabonis","Karl-Anthony Towns","Myles Turner","Jordan Poole","Zion","Franz Wagner","Jalen Green","Jakob Poeltl","Klay Thompson","Keegan Murray","Collin Sexton","Coby White")
+picks_08 <- c("Stephen Curry","Damian Lillard","Lauri Markkanen","Pascal Siakam","Nic Claxton","Tyrese Maxey","Anfernee Simons","Rudy Gobert","Daniel Gafford","Zach Collins","Ben Simmons","Bennedict Mathurin","Jeremy Sochan")
+picks_09 <- c("Anthony Davis","Donovan Mitchell","Bam Adebayo","De'Aaron Fox","Jrue Holiday","OG Anunoby","Jarrett Allen","Jalen Williams","Austin Reaves","Tobias Harris","De'Anthony Melton","Gary Trent Jr.","Shaedon Sharpe")
+picks_10 <- c("Anthony Edwards","Kevin Durant","LeBron James","Evan Mobley","Paolo Banchero","Bradley Beal","CJ McCollum","Ja Morant","Buddy Hield","Jonas Valanciunas","Marcus Smart","Aaron Gordon","Ivica Zubac")
 
 picks <- c(picks_01,picks_02,picks_03,picks_04,picks_05,picks_06,picks_07,picks_08,picks_09,picks_10)
 
