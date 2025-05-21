@@ -1,0 +1,71 @@
+---
+title: "Fantasy Strategy"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(tidyverse); library(corrr)
+```
+
+You can add options to executable code like this
+
+```{r}
+y <- 
+  player_season %>%
+  filter(yearSeason == 2023) %>%
+  filter(minutes >= 70 * 20) %>% 
+  select(
+    namePlayer,groupPosition,
+    pctFG,pctFT,fg3mTotals,trbTotals,astTotals,
+    stlTotals,blkTotals,ptsTotals,tovTotals
+  )
+
+z <-
+  y %>%
+  correlate() %>%
+  rearrange() %>%
+  shave()
+
+rplot(z)
+```
+
+Correlated stats:
+
+-   ast, stl, pts
+
+```{r}
+y %>% correlate() %>% network_plot()
+```
+
+make clusters
+
+```{r}
+prcomps <-
+  tibble(pc = 1:15) %>%
+  mutate(
+    pca = map(
+      pc, ~prcomp(
+        y %>% 
+          select(pctFG,trbTotals,astTotals,stlTotals,blkTotals,ptsTotals) %>% 
+          scale(), .x
+      )
+    ),
+    tidied = map(pca, tidy),
+    augmented = map(pca, augment, y)
+  )
+
+pca_players <- 
+  prcomps %>% 
+  unnest(augmented) %>%
+  select(namePlayer:.fittedPC6) %>%
+  distinct()
+```
