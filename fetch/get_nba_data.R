@@ -3,9 +3,9 @@ library(nbastatR);library(tidyverse)
 # https://github.com/rajshah4/BasketballData
 # http://asbcllc.com/nbastatR/index.html
 
-nba_players_08_19 <-
+nba_players_2025 <-
   bref_players_stats(
-    seasons = 2008:2019, 
+    seasons = 2025, 
     tables = c("advanced", "totals", "per_game"),
     include_all_nba = T, 
     only_totals = TRUE, 
